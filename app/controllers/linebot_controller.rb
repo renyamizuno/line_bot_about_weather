@@ -1,8 +1,6 @@
 class LinebotController < ApplicationController
   require 'line/bot'
 
-  skip_before_action :verify_authenticity_token
-
   def client
     @client ||= Line::Bot::Client.new { |config|
       config.channel_secret = ENV["LINE_CHANNEL_SECRET"]
