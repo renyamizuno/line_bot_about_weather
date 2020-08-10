@@ -1,7 +1,7 @@
 class LinebotController < ApplicationController
   require 'line/bot'
 
-  protect_from_forgery :except => [:callback]
+  skip_before_action :verify_authenticity_token
 
   def client
     @client ||= Line::Bot::Client.new { |config|
