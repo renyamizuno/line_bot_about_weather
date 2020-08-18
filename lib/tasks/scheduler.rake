@@ -4,7 +4,7 @@
 namespace :line do
   desc "Herokuでタスク回すよ。This task is called by the Heroku scheduler add-on"
   task :line_in_the_morning => :environment do
-    uri = URI.parse("https://api.openweathermap.org/data/2.5/forecast?lat=#{lat}&lon=#{lon}&appid=aa07326426e4d176a58b0929a56f7998&lang=ja")
+    uri = URI.parse("https://api.openweathermap.org/data/2.5/forecast?lat=#{lat}&lon=#{lon}&appid=#{ENV["OPEN_WEATHER_MAP_APP_ID"]}&lang=ja")
     logger.debug "----------"
     logger.debug "----------"
     logger.debug "uri -> #{uri}"
