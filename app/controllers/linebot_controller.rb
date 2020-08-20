@@ -11,7 +11,60 @@ class LinebotController < ApplicationController
       head :bad_request
     end
 
-    rich_menu =
+    events = client.parse_events_from(body)
+
+    events.each { |event|
+      begin
+        case event
+        when Line::Bot::Event::Message
+          case event.type
+          when Line::Bot::Event::MessageType::Text
+            if event.message['text'].eql?('あ')
+              client.reply_message(event['replyToken'], template)
+              rich = client.create_rich_menu(rich_menu)
+              richmenu_id = JSON.parse(rich.body.gsub('=>', ':'))["richMenuId"]
+              client.create_rich_menu_image(richmenu_id, File.open("/Users/sawadakoujirou/line_bot_about_weather/app/image/001.png"))
+              client.link_user_rich_menu(event["source"]["userId"], richmenu_id)
+              # client.get_rich_menu(richmenu_id)
+              # logger.debug("#{client.get_rich_menu(richmenu_id).body}")
+            elsif event.message['text'].eql?('位置情報を変更')
+              client.reply_message(event['replyToken'], location_image_template)
+              client.reply_message(event['replyToken'], location_template)
+            end
+          when Line::Bot::Event::MessageType::Location
+            line_id = event["source"]["userId"]
+            address = event.message['address']
+            lat = event.message['latitude']
+            lon = event.message['longitude']
+            unless User.already_exist?(line_id)
+              User.create_user(line_id, address, lat, lon)
+            end
+            client.reply_message(event['replyToken'], template)
+          end
+        end
+      rescue => e
+        logger.debug("----------")
+        logger.debug("----------")
+        logger.debug("エラーメッセージ：")
+        logger.debug(e.message)
+        logger.debug("----------")
+        logger.debug("----------")
+        client.reply_message(event['replyToken'], error_template)
+      end
+      }
+
+    head :ok
+  end
+
+  private
+  def client
+    client ||= Line::Bot::Client.new { |config|
+      config.channel_secret = ENV["LINE_CHANNEL_SECRET"]
+      config.channel_token = ENV["LINE_CHANNEL_TOKEN"]
+    }
+  end
+
+  def rich_menu
     {
       "size":{
           "width":1200,
@@ -40,48 +93,15 @@ class LinebotController < ApplicationController
               "width":1200,
               "height":600
           },
-          "action":{
-              "type":"message",
-              "text":"通知時間を変更"
-          }
+          "action":
+            {
+              "type":"datetimepicker",
+              "label":"通知の時間帯を設定してね。",
+              "data":"/callback",
+              "mode":"time",
+            }
         }
       ]
-    }
-    events = client.parse_events_from(body)
-
-    events.each { |event|
-      case event
-      when Line::Bot::Event::Message
-        case event.type
-        when Line::Bot::Event::MessageType::Text
-          if event.message['text'].eql?('あ')
-            client.reply_message(event['replyToken'], template)
-            rich = client.create_rich_menu(rich_menu)
-            richmenu_id = JSON.parse(rich.body.gsub('=>', ':'))["richMenuId"]
-            client.create_rich_menu_image(richmenu_id, File.open("/Users/sawadakoujirou/line_bot_about_weather/app/image/001.png"))
-            client.link_user_rich_menu(event["source"]["userId"], richmenu_id)
-            # client.get_rich_menu(richmenu_id)
-            # logger.debug("#{client.get_rich_menu(richmenu_id).body}")
-          elsif event.message['text'].eql?('位置情報を変更')
-            client.reply_message(event['replyToken'], location_image_template)
-            client.reply_message(event['replyToken'], location_template)
-          end
-        when Line::Bot::Event::MessageType::Location
-          lat = event.message['latitude'] # 緯度
-          lon = event.message['longitude'] # 経度
-          client.reply_message(event['replyToken'], template)
-        end
-      end
-    }
-
-    head :ok
-  end
-
-  private
-  def client
-    client ||= Line::Bot::Client.new { |config|
-      config.channel_secret = ENV["LINE_CHANNEL_SECRET"]
-      config.channel_token = ENV["LINE_CHANNEL_TOKEN"]
     }
   end
 
@@ -139,5 +159,12 @@ class LinebotController < ApplicationController
           "destination"=>"U0e2484470e33a7a0e8f9bdb5f769399d"
         }
       }
+  end
+
+  def error_template
+    {
+      type: 'text',
+      text: 'なんかエラー起きてるので、何回か試してみてダメだったらさわだくんに連絡してね。'
+    }
   end
 end
