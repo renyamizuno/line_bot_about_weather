@@ -12,6 +12,7 @@ class LinebotController < ApplicationController
     end
 
     events = client.parse_events_from(body)
+    @user = User.line_id_match(events.first["source"]["userId"])
 
     events.each { |event|
       begin
@@ -19,28 +20,35 @@ class LinebotController < ApplicationController
         when Line::Bot::Event::Message
           case event.type
           when Line::Bot::Event::MessageType::Text
-            if event.message['text'].eql?('あ')
-              client.reply_message(event['replyToken'], template)
-              rich = client.create_rich_menu(rich_menu)
-              richmenu_id = JSON.parse(rich.body.gsub('=>', ':'))["richMenuId"]
-              client.create_rich_menu_image(richmenu_id, File.open("/Users/sawadakoujirou/line_bot_about_weather/app/image/001.png"))
-              client.link_user_rich_menu(event["source"]["userId"], richmenu_id)
-              # client.get_rich_menu(richmenu_id)
-              # logger.debug("#{client.get_rich_menu(richmenu_id).body}")
-            elsif event.message['text'].eql?('位置情報を変更')
+            if event.message['text'].eql?('位置情報を変更')
               client.reply_message(event['replyToken'], location_image_template)
-              client.reply_message(event['replyToken'], location_template)
             end
           when Line::Bot::Event::MessageType::Location
             line_id = event["source"]["userId"]
             address = event.message['address']
             lat = event.message['latitude']
             lon = event.message['longitude']
-            unless User.already_exist?(line_id)
-              User.create_user(line_id, address, lat, lon)
+
+            if @user
+              @user.update_user_info(address, lat, lon)
+            else
+              @user = User.create_user(line_id, address, lat, lon)
             end
-            client.reply_message(event['replyToken'], template)
+            client.reply_message(event['replyToken'], update_location_template(@user))
           end
+        when Line::Bot::Event::Postback
+          selected_time = Time.zone.parse(event["postback"]["params"]["time"])
+          if @user.setting_info_time(selected_time)
+            client.reply_message(event['replyToken'], success_time_setting_template(@user))
+          else
+            client.reply_message(event['replyToken'], no_user_template)
+          end
+        else
+          logger.debug("----------")
+          logger.debug("----------")
+          logger.debug("該当なしです")
+          logger.debug("----------")
+          logger.debug("----------")
         end
       rescue => e
         logger.debug("----------")
@@ -62,6 +70,15 @@ class LinebotController < ApplicationController
       config.channel_secret = ENV["LINE_CHANNEL_SECRET"]
       config.channel_token = ENV["LINE_CHANNEL_TOKEN"]
     }
+  end
+
+  def new_rich_menu(client, rich_menu, event)
+    rich = client.create_rich_menu(rich_menu)
+    richmenu_id = JSON.parse(rich.body.gsub('=>', ':'))["richMenuId"]
+    client.create_rich_menu_image(richmenu_id, File.open("/Users/sawadakoujirou/line_bot_about_weather/app/image/001.png"))
+    client.link_user_rich_menu(event["source"]["userId"], richmenu_id)
+    # client.get_rich_menu(richmenu_id)
+    # logger.debug("#{client.get_rich_menu(richmenu_id).body}")
   end
 
   def rich_menu
@@ -95,20 +112,20 @@ class LinebotController < ApplicationController
           },
           "action":
             {
-              "type":"datetimepicker",
-              "label":"通知の時間帯を設定してね。",
-              "data":"/callback",
-              "mode":"time",
+              "type": "datetimepicker",
+              "label": "通知の時間帯を設定してね。",
+              "data": "data",
+              "mode": "time",
             }
         }
       ]
     }
   end
 
-  def template
+  def update_location_template(user)
     {
       type: 'text',
-      text: 'hello'
+      text: "位置情報を設定しました。#{user.address}, #{user.lat}, #{user.lon}"
     }
   end
 
@@ -127,38 +144,18 @@ class LinebotController < ApplicationController
     }
   end
 
-  def line_template
-      {
-        "events"=>[
-          {
-            "type"=>"message", "replyToken"=>"8dd6891155bd41c488535119b092c8ff", "source"=>{"userId"=>"U89f27392ac1fbd4f6ee82a93a9c29616", "type"=>"user"},
-            "timestamp"=>1597390795082, "mode"=>"active", "message"=>{"type"=>"location", "id"=>"12497729270049", "address"=>"日本、〒060-0063 北海道札幌市中央区南３条西６丁目１−３ ティアラ３６", "latitude"=>43.05577, "longitude"=>141.349891}
-          }
-        ],
-        "destination"=>"U0e2484470e33a7a0e8f9bdb5f769399d",
-        "linebot"=>{
-          "events"=>[
-            {
-              "type"=>"message",
-              "replyToken"=>"8dd6891155bd41c488535119b092c8ff",
-              "source"=>{
-                "userId"=>"U89f27392ac1fbd4f6ee82a93a9c29616",
-                "type"=>"user"
-              },
-              "timestamp"=>1597390795082,
-              "mode"=>"active",
-              "message"=>{
-                "type"=>"location",
-                "id"=>"12497729270049",
-                "address"=>"日本、〒060-0063 北海道札幌市中央区南３条西６丁目１−３ ティアラ３６",
-                "latitude"=>43.05577,
-                "longitude"=>141.349891
-              }
-            }
-          ],
-          "destination"=>"U0e2484470e33a7a0e8f9bdb5f769399d"
-        }
-      }
+  def success_time_setting_template(user)
+    {
+      type: 'text',
+      text: "設定完了！#{I18n.l user.info_time}に通知が送られるよ！"
+    }
+  end
+
+  def no_user_template
+    {
+      type: 'text',
+      text: 'ユーザーが設定されてないよ。一回位置情報を送ってね。'
+    }
   end
 
   def error_template
