@@ -45,7 +45,7 @@ class WeatherInfoJob
   def check_if_today_will_rain?(hash)
     hash["list"].each do |list|
       if Time.zone.at(list["dt"]).strftime('%Y-%m-%d') == Time.zone.now.strftime('%Y-%m-%d')
-        if list["pop"] >= 0.4
+        if list["pop"] >= 0.1
           return true
         end
       end
