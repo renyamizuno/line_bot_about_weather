@@ -28,7 +28,6 @@ class LinebotController < ApplicationController
           when Line::Bot::Event::MessageType::Text
             if event.message['text'].include?('使い方')
               @client.reply_message(event['replyToken'], location_image_template)
-              @client.push_message(@user.line_id, secret_message_template)
             elsif event.message['text'].include?('グッドパッチ')
               @client.reply_message(event['replyToken'], secret_message_template)
             else
@@ -125,7 +124,7 @@ class LinebotController < ApplicationController
   def update_location_template(user)
     {
       type: 'text',
-      text: "位置情報を設定しました。#{user.address}, #{user.lat}, #{user.lon}"
+      text: "位置情報を設定しました。\n設定された住所：#{user.address}\n\nここから一番近い場所の天気を伝えるよ"
     }
   end
 
@@ -147,7 +146,7 @@ class LinebotController < ApplicationController
   def success_time_setting_template(user)
     {
       type: 'text',
-      text: "設定完了！#{I18n.l user.info_time}に通知が送られるよ！"
+      text: "設定完了！\n\n#{I18n.l user.info_time}に通知が送られるよ！"
     }
   end
 
