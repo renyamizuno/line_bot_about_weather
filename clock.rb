@@ -11,7 +11,7 @@ module Clockwork
     end
 
     # debug用
-    # every(60.second, WeatherInfoJob.new, :thread => true)
+    every(60.second, WeatherInfoJob.new, :thread => true)
 
     every(1.day, WeatherInfoJob.new, :at => user.info_time.strftime("%H:%M"), :thread => true)
   end
