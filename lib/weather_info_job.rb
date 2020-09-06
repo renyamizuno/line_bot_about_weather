@@ -4,6 +4,7 @@ class WeatherInfoJob
   def call(user)
     hash_of_weather_info = get_hash_of_wether_info(user.lat, user.lon)
 
+    puts check_if_today_will_rain?(hash_of_weather_info)
     return puts "雨降らなさそうなので処理中止！" unless check_if_today_will_rain?(hash_of_weather_info)
 
     push_message(user, get_percentage_of_max_pop_today(hash_of_weather_info))
@@ -43,6 +44,8 @@ class WeatherInfoJob
   end
 
   def check_if_today_will_rain?(hash)
+    puts "checkifでhash吐かせてます"
+    puts hash
     hash["list"].each do |list|
       if Time.zone.at(list["dt"]).strftime('%Y-%m-%d') == Time.zone.now.strftime('%Y-%m-%d')
         if list["pop"] >= 0.1
