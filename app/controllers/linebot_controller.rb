@@ -16,13 +16,16 @@ class LinebotController < ApplicationController
         when Line::Bot::Event::Follow
           puts "followイベント走りました。"
           @user = User.create(line_id: event["source"]["userId"])
+
         when Line::Bot::Event::Unfollow
           puts "unfollowイベント走りました。"
           @user.delete
+
         when Line::Bot::Event::Postback
           selected_time = Time.zone.parse(event["postback"]["params"]["time"])
           @user.setting_info_time(selected_time)
           @client.reply_message(event['replyToken'], success_time_setting_template(@user))
+
         when Line::Bot::Event::Message
           case event.type
           when Line::Bot::Event::MessageType::Text
